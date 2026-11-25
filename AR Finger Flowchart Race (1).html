@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AR Finger Flowchart Race</title>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js" crossorigin="anonymous"></script>
+<style>
+:root{--p1:#38bdf8;--p2:#fb923c;--bad:#f43f5e;--warn:#fbbf24;--panel:rgba(15,23,42,.62);--line:rgba(255,255,255,.22);box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{overflow:hidden;font-family:'Kanit',sans-serif;background:#0b1120;color:#f8fafc;user-select:none;-webkit-user-select:none;touch-action:none}
+#cam,#cv{position:fixed;inset:0;width:100%;height:100%;z-index:1}
+#cam{object-fit:cover;transform:scaleX(-1)}
+#cv{transform:scaleX(-1);z-index:2;pointer-events:none}
+.shade{position:fixed;inset:0;z-index:1;pointer-events:none;background:linear-gradient(rgba(7,11,22,.45),transparent 14%,transparent 88%,rgba(7,11,22,.4))}
+#load{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:20px;text-align:center;background:radial-gradient(circle,#1e293b,#0b1120)}
+.spin{width:50px;height:50px;border:4px solid rgba(255,255,255,.15);border-top-color:var(--p1);border-right-color:var(--p2);border-radius:50%;animation:sp 1s linear infinite;margin-bottom:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
+#ui{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;pointer-events:none}
+.top{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 12px 4px;pointer-events:auto;position:relative;z-index:30}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;width:100%;max-width:1200px;background:var(--panel);border:1px solid var(--line);backdrop-filter:blur(12px);padding:6px 14px;border-radius:999px}
+h1{margin:0;font-size:14px;font-weight:700;white-space:nowrap;background:linear-gradient(90deg,#38bdf8,#fff,#fb923c);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.mid{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;min-width:0}
+.mission{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.tag{font-size:10.5px;color:#bae6fd;background:rgba(56,189,248,.16);border:1px solid rgba(56,189,248,.35);padding:1px 9px;border-radius:999px;white-space:nowrap}
+.acts{display:flex;align-items:center;gap:6px}
+.timer{font-size:12px;font-weight:600;color:var(--warn);background:rgba(0,0,0,.45);border:1px solid rgba(251,191,36,.45);padding:3px 10px;border-radius:999px;font-variant-numeric:tabular-nums}
+.chip,.pill{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#f8fafc;padding:3px 10px;border-radius:999px;font:11.5px 'Kanit',sans-serif;cursor:pointer}
+.pills{display:flex;gap:5px;flex-wrap:wrap;justify-content:center}
+.pill.on{background:var(--p1);color:#0b1120;font-weight:700;border-color:#fff}
+.arena{flex:1;display:flex;justify-content:space-between;padding:6px 14px 44px;min-height:0}
+.half{display:flex;flex-direction:column;width:34vw;min-width:270px;max-width:400px;min-height:0}
+.banner{display:flex;justify-content:space-between;align-items:center;padding:5px 12px;border-radius:12px;margin-bottom:8px;font-size:12.5px;font-weight:600;backdrop-filter:blur(8px)}
+.p1 .banner{background:rgba(2,132,199,.42);border:1px solid rgba(56,189,248,.55)}
+.p2 .banner{background:rgba(234,88,12,.42);border:1px solid rgba(251,146,60,.55)}
+.prog{font-size:11px;background:rgba(15,23,42,.55);padding:2px 9px;border-radius:999px}
+.cols{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:10px;min-height:0}
+.bank{position:relative;border:1px dashed rgba(255,255,255,.2);border-radius:14px;background:rgba(15,23,42,.18)}
+.p2 .bank{order:2}
+.hint{position:absolute;top:6px;left:50%;transform:translateX(-50%);font-size:10.5px;background:rgba(15,23,42,.55);padding:2px 10px;border-radius:999px;white-space:nowrap}
+.slots{display:flex;flex-direction:column;justify-content:space-evenly;padding:22px 0 4px}
+.row{display:flex;flex-direction:column;align-items:center}
+.arrow{font-size:9px;line-height:1;color:rgba(255,255,255,.65);margin:2px 0}
+.zone{position:relative;width:100%;height:54px;display:flex;align-items:center;justify-content:center;gap:6px;padding:4px 8px;border:1.5px dashed var(--line);border-radius:12px;background:rgba(15,23,42,.36);font-size:10.5px;color:rgba(241,245,249,.8);transition:.16s}
+.zone.p1{border-color:rgba(56,189,248,.45)}
+.zone.p2{border-color:rgba(251,146,60,.45)}
+.zone.hl{transform:scale(1.03);border-style:solid;background:rgba(255,255,255,.14)}
+.zone.p1.hl{border-color:var(--p1);background:rgba(56,189,248,.28);box-shadow:0 0 16px rgba(56,189,248,.55)}
+.zone.p2.hl{border-color:var(--p2);background:rgba(251,146,60,.28);box-shadow:0 0 16px rgba(251,146,60,.55)}
+.badge{position:absolute;top:-8px;left:8px;font-size:9.5px;font-weight:600;background:rgba(15,23,42,.85);border:1px solid rgba(255,255,255,.18);padding:0 6px;border-radius:999px}
+.ph{display:flex}
+.ph svg{width:26px;height:15px}
+.block{position:fixed;height:52px;display:flex;align-items:center;gap:7px;padding:5px 9px;border:1.5px solid;border-radius:12px;color:#fff;font-size:11.5px;font-weight:500;line-height:1.22;transform:translate(-50%,-50%);z-index:20;cursor:default;touch-action:none;pointer-events:auto;box-shadow:0 6px 16px rgba(0,0,0,.38);backdrop-filter:blur(8px);transition:box-shadow .15s}
+.block.p1{background:linear-gradient(135deg,rgba(12,74,110,.86),rgba(2,132,199,.86));border-color:rgba(56,189,248,.8)}
+.block.p2{background:linear-gradient(135deg,rgba(124,45,18,.86),rgba(234,88,12,.86));border-color:rgba(251,146,60,.8)}
+.block svg{width:28px;height:17px;flex-shrink:0}
+.block span{flex:1;text-align:left;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-shadow:0 1px 2px rgba(0,0,0,.7)}
+.block.grabbed{transform:translate(-50%,-50%) scale(1.07);z-index:120;border-color:#fff;box-shadow:0 10px 26px rgba(255,255,255,.35)}
+.block.ok{background:linear-gradient(135deg,rgba(5,150,105,.92),rgba(16,185,129,.92))!important;border-color:#a7f3d0!important;box-shadow:0 0 16px rgba(16,185,129,.65)}
+.block.bad{border-color:var(--bad)!important;box-shadow:0 0 16px rgba(244,63,94,.75)}
+.cur{z-index:6000;position:fixed;width:26px;height:26px;border:2.5px solid #fff;border-radius:50%;background:rgba(56,189,248,.3);box-shadow:0 0 12px rgba(56,189,248,.85);transform:translate(-50%,-50%);display:none;pointer-events:none;transition:transform .08s}
+.cur.p2{background:rgba(251,146,60,.3);box-shadow:0 0 12px rgba(251,146,60,.85)}
+.cur.pinch{transform:translate(-50%,-50%) scale(.6);background:var(--p1)}
+.cur.p2.pinch{background:var(--p2)}
+.toast{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);max-width:94%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12.5px;font-weight:500;background:var(--panel);border:1px solid var(--line);padding:5px 16px;border-radius:999px;backdrop-filter:blur(10px);text-shadow:0 1px 3px rgba(0,0,0,.85)}
+.toast.warn{color:var(--warn)}
+.toast.ok{color:#6ee7b7}
+.modal{position:fixed;inset:0;z-index:5000;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(5,10,22,.78);backdrop-filter:blur(8px);pointer-events:auto}
+.modal.open{display:flex}
+.card{width:100%;max-width:620px;max-height:90vh;overflow:auto;padding:22px;border-radius:22px;background:linear-gradient(145deg,#0f172a,#1e293b);border:1.5px solid rgba(56,189,248,.4);box-shadow:0 20px 56px rgba(0,0,0,.7)}
+.card.vic{max-width:440px;text-align:center;border-color:var(--warn)}
+.trophy{font-size:52px;animation:bo 1.2s infinite}
+@keyframes bo{50%{transform:translateY(-8px)}}
+.btn{padding:8px 20px;border:0;border-radius:999px;font:600 14px 'Kanit',sans-serif;color:#fff;cursor:pointer;background:linear-gradient(45deg,#0284c7,#38bdf8);box-shadow:0 4px 14px rgba(0,0,0,.35)}
+.btn.warn{background:linear-gradient(45deg,#f59e0b,#fbbf24);color:#0f172a}
+input,select{width:100%;background:#0b1120;border:1px solid #334155;color:#fff;padding:7px 10px;border-radius:10px;font:13px 'Kanit',sans-serif;margin-bottom:8px}
+.brow{display:grid;grid-template-columns:70px 1fr 170px;gap:8px;align-items:center}
+.brow input,.brow select{margin:0}
+.err{color:#fb7185;font-size:12.5px;min-height:18px;margin:4px 0 8px}
+.hs{position:fixed;left:12px;bottom:10px;z-index:40;font-size:12px;background:var(--panel);border:1px solid var(--line);padding:4px 12px;border-radius:999px;backdrop-filter:blur(10px);pointer-events:none}
+.hs.ok{color:#6ee7b7}.hs.no{color:var(--warn)}
+.camerr{max-width:520px;font-size:14px;line-height:1.5;color:#fda4af;background:rgba(244,63,94,.12);border:1px solid rgba(244,63,94,.4);padding:10px 14px;border-radius:14px;display:none}
+@media(max-width:760px){.half{width:45vw;min-width:0}.block{font-size:10px;height:44px}.zone{height:46px}.brow{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div id="load">
+  <div class="spin" id="spin" style="display:none"></div>
+  <div id="hand-ico" style="font-size:56px;line-height:1">🤏</div>
+  <h2 style="margin:0;font-size:24px">AR Finger Flowchart Race</h2>
+  <p id="load-status" style="margin:0;max-width:520px;opacity:.9">เกมนี้เล่นด้วยการ “จีบนิ้ว” เท่านั้น จึงต้องใช้กล้องเพื่อมองเห็นมือของคุณ</p>
+  <p style="margin:0;max-width:520px;font-size:14px;opacity:.75">จีบนิ้วโป้ง + นิ้วชี้เข้าหากันเพื่อ “หยิบ” บล็อก เลื่อนมือไปที่ช่อง แล้วแบนิ้วออกเพื่อ “วาง”<br>ผู้เล่น 1 ใช้มือฝั่งซ้ายของจอ · ผู้เล่น 2 ใช้มือฝั่งขวาของจอ</p>
+  <div id="camerr" class="camerr"></div>
+  <button class="btn warn" id="camBtn" onclick="enableCamera()">📷 อนุญาตกล้องและเริ่มเล่น</button>
+  <p style="margin:0;max-width:480px;font-size:12px;opacity:.55">ภาพจากกล้องประมวลผลบนเครื่องของคุณเท่านั้น ไม่มีการอัปโหลดหรือบันทึกภาพ</p>
+</div>
+
+<video id="cam" autoplay playsinline muted></video>
+<div class="shade"></div>
+<canvas id="cv"></canvas>
+<div id="c0" class="cur"></div><div id="c1" class="cur p2"></div><div id="c2" class="cur"></div><div id="c3" class="cur p2"></div>
+
+<div id="ui">
+  <div class="top">
+    <div class="bar">
+      <h1 id="ttl"></h1>
+      <div class="mid"><span id="mission" class="mission"></span><span id="structure" class="tag"></span></div>
+      <div class="acts">
+        <span id="timer" class="timer">⏱ 00:00</span>
+        <button class="chip" onclick="openBuilder()">➕ โจทย์</button>
+        <button class="chip" onclick="loadLevel(cur)">🔄 เริ่มใหม่</button>
+        <button class="chip" id="snd" onclick="toggleSound()">🔊</button>
+      </div>
+    </div>
+    <div id="pills" class="pills"></div>
+  </div>
+
+  <div class="arena">
+    <div class="half p1">
+      <div class="banner"><span id="n1"></span><span class="prog" id="p1-prog">0</span></div>
+      <div class="cols">
+        <div class="bank" id="p1-bank"><span class="hint">🖐️ จีบหยิบบล็อกฝั่งซ้าย</span></div>
+        <div class="slots" id="p1-slots"></div>
+      </div>
+    </div>
+    <div class="half p2">
+      <div class="banner"><span id="n2"></span><span class="prog" id="p2-prog">0</span></div>
+      <div class="cols">
+        <div class="bank" id="p2-bank"><span class="hint">🖐️ จีบหยิบบล็อกฝั่งขวา</span></div>
+        <div class="slots" id="p2-slots"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <div id="hs" class="hs no">✋ ยื่นมือเข้ากล้อง</div>
+</div>
+
+<div id="victory" class="modal">
+  <div class="card vic">
+    <div class="trophy">🏆</div>
+    <h2 id="wt" style="margin:0;font-size:24px;color:var(--warn)"></h2>
+    <p id="wd" style="margin:8px 0 20px;color:#e2e8f0"></p>
+    <button class="btn warn" onclick="loadLevel(cur)">🔄 แข่งด่านนี้อีกครั้ง</button>
+    <button class="btn" onclick="loadLevel((cur+1)%levels.length)">➡️ ด่านถัดไป</button>
+  </div>
+</div>
+
+<div id="builder" class="modal">
+  <div class="card">
+    <h2 style="margin:0 0 4px;font-size:20px;color:var(--p1)">🛠️ สร้างโจทย์ผังงานใหม่</h2>
+    <p style="margin:0 0 14px;font-size:12px;color:#94a3b8">ตั้งชื่อโจทย์ เลือกโครงสร้าง และกรอกขั้นตอนตามลำดับที่ถูกต้อง</p>
+    <input id="bTitle" placeholder="ชื่อโจทย์ เช่น ระบบคำนวณเกรดเฉลี่ย">
+    <select id="bStruct">
+      <option>โครงสร้างแบบลำดับ (Sequence)</option>
+      <option>โครงสร้างแบบมีทางเลือก (Selection)</option>
+      <option>โครงสร้างแบบทำซ้ำ (Iteration / Loop)</option>
+    </select>
+    <div id="bSteps"></div>
+    <div id="bErr" class="err"></div>
+    <div style="display:flex;justify-content:flex-end;gap:10px">
+      <button class="chip" onclick="closeBuilder()">ยกเลิก</button>
+      <button class="btn" onclick="saveLevel()">💾 บันทึกและเริ่มแข่งด่านนี้</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== ตั้งค่าที่ครูปรับได้ =====
+const CONFIG = {
+  title: 'AR Finger Flowchart Race',
+  names: ['🔵 ผู้เล่น 1 (ฝั่งซ้าย)', '🟠 ผู้เล่น 2 (ฝั่งขวา)'],
+  pinchGrab: 0.26,       // สัดส่วนระยะปลายนิ้วโป้ง-ชี้ ต่อขนาดฝ่ามือ: ต่ำกว่านี้ = จีบ (ค่าน้อย = ต้องจีบชิดขึ้น)
+  pinchRelease: 0.42,    // สูงกว่านี้ = แบนิ้วออก (มากกว่า pinchGrab เพื่อกันหลุดมือระหว่างลาก)
+  smooth: 0.55,          // 0-1 ความไวของเคอร์เซอร์ (มาก = ตอบสนองเร็ว, น้อย = นิ่งขึ้น)
+  startLevel: 0          // ด่านเริ่มต้น (0 = ด่าน 1)
+};
+
+// ===== สัญลักษณ์ Flowchart =====
+const TYPES = {
+  Terminator:  {label:'เริ่มต้น / จบ',        color:'#ff6b81', fill:'rgba(255,107,129,.28)', shape:'<rect x="4" y="6" width="72" height="28" rx="14"/>'},
+  InputOutput: {label:'รับเข้า / แสดงผล',     color:'#1dd1a1', fill:'rgba(29,209,161,.28)',  shape:'<polygon points="16,6 76,6 64,34 4,34"/>'},
+  Process:     {label:'ประมวลผล',             color:'#00d2ff', fill:'rgba(0,210,255,.28)',   shape:'<rect x="6" y="6" width="68" height="28" rx="3"/>'},
+  Decision:    {label:'ตัดสินใจ / เงื่อนไข',  color:'#feca57', fill:'rgba(254,202,87,.28)',  shape:'<polygon points="40,3 76,20 40,37 4,20"/>'}
+};
+const DEFAULT_TYPES = ['Terminator','InputOutput','Process','InputOutput','Terminator'];
+const icon = t => `<svg viewBox="0 0 80 40" style="fill:${TYPES[t].fill};stroke:${TYPES[t].color};stroke-width:3">${TYPES[t].shape}</svg>`;
+
+// ===== ด่านมาตรฐาน 5 ด่าน (แต่ละขั้น = [ประเภท, ข้อความ]) =====
+const levels = [
+  {title:'ด่านที่ 1: คำนวณหาพื้นที่สี่เหลี่ยมผืนผ้า', structure:'โครงสร้างแบบลำดับ (Sequence)', steps:[
+    ['Terminator','เริ่มต้น (Start)'],['InputOutput','รับค่าความกว้างและความยาว'],['Process','พื้นที่ = กว้าง × ยาว'],['InputOutput','แสดงผลลัพธ์พื้นที่สี่เหลี่ยม'],['Terminator','จบการทำงาน (End)']]},
+  {title:'ด่านที่ 2: การต้มบะหมี่กึ่งสำเร็จรูป', structure:'โครงสร้างแบบลำดับ (Sequence)', steps:[
+    ['Terminator','เริ่มต้น (Start)'],['Process','เตรียมบะหมี่และต้มน้ำร้อน'],['Process','เทน้ำร้อนใส่ชาม ปิดฝา 3 นาที'],['InputOutput','คนให้เข้ากัน พร้อมรับประทาน'],['Terminator','จบการทำงาน (End)']]},
+  {title:'ด่านที่ 3: ตรวจสอบคะแนนสอบผ่านเกณฑ์ 50 คะแนน', structure:'โครงสร้างแบบมีทางเลือก (Selection)', steps:[
+    ['Terminator','เริ่มต้น (Start)'],['InputOutput','รับค่าคะแนนรวม (Score)'],['Decision','ตรวจสอบ Score >= 50 หรือไม่?'],['InputOutput','จริง: แสดง “สอบผ่าน” / เท็จ: แสดง “สอบตก”'],['Terminator','จบการทำงาน (End)']]},
+  {title:'ด่านที่ 4: ตรวจสภาพอากาศก่อนออกจากบ้าน', structure:'โครงสร้างแบบมีทางเลือก (Selection)', steps:[
+    ['Terminator','เริ่มต้น (Start)'],['InputOutput','สังเกตสภาพท้องฟ้า / พยากรณ์อากาศ'],['Decision','ฝนกำลังจะตกใช่หรือไม่?'],['Process','ใช่: หยิบร่มติดตัว / ไม่ใช่: เดินทางปกติ'],['Terminator','จบการทำงาน (End)']]},
+  {title:'ด่านที่ 5: นับการกระโดดตบออกกำลังกายครบ 10 ครั้ง', structure:'โครงสร้างแบบทำซ้ำ (Iteration / Loop)', steps:[
+    ['Terminator','เริ่มต้น (ตั้งค่า Count = 0)'],['Process','กระโดดตบ 1 ครั้ง และเพิ่มค่า Count + 1'],['Decision','ตรวจสอบ Count < 10 ใช่หรือไม่? (ใช่: วนซ้ำ)'],['InputOutput','ครบ 10 ครั้ง: แสดงผล “ทำภารกิจสำเร็จ!”'],['Terminator','จบการทำงาน (End)']]}
+];
+
+// ===== สถานะเกม =====
+let cur = CONFIG.startLevel, active = false, started = false, blocks = [];
+let secs = 0, timer = null, sound = true, synth = null;
+const $ = id => document.getElementById(id);
+const inside = (x, y, r) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+const srcMouse = {x:0, y:0, block:null};
+const cursors = [0,1,2,3].map(i => ({x:0, y:0, on:false, pinched:false, block:null, det:null, el:$('c'+i)}));
+const held = el => srcMouse.block === el || cursors.some(c => c.block === el);
+
+// ===== เสียง (Tone.js) =====
+function snd(kind){
+  if(!sound || !window.Tone) return;
+  try{
+    if(Tone.context.state !== 'running') Tone.start();
+    synth = synth || new Tone.Synth().toDestination();
+    if(kind === 'win'){ const t = Tone.now(); ['C5','E5','G5','C6'].forEach((p,i) => synth.triggerAttackRelease(p,'8n',t+i*.12)); }
+    else synth.triggerAttackRelease({grab:'C5',snap:'E5',ok:'G5',bad:'A3'}[kind], '16n');
+  }catch(e){}
+}
+function toggleSound(){ sound = !sound; $('snd').textContent = sound ? '🔊' : '🔇'; }
+
+// ===== ช่วยเหลือ =====
+const shuffle = a => { const c = [...a]; for(let i = c.length-1; i > 0; i--){ const j = Math.random()*(i+1)|0; [c[i],c[j]] = [c[j],c[i]]; } return c; };
+function shuffleNonTrivial(a){ let s = shuffle(a), t = 0; while(s.every((x,i) => x.k === i) && t++ < 10) s = shuffle(a); return s; }
+function msg(t, cls=''){ const m = $('toast'); m.textContent = t; m.className = 'toast ' + cls; }
+function say(t){ $('load-status').textContent = t; }
+function fmt(){ return String(Math.floor(secs/60)).padStart(2,'0') + ':' + String(secs%60).padStart(2,'0'); }
+function tick(){
+  clearInterval(timer); secs = 0; $('timer').textContent = '⏱ 00:00';
+  timer = setInterval(() => { if(active){ secs++; $('timer').textContent = '⏱ ' + fmt(); } }, 1000);
+}
+function pills(){
+  $('pills').innerHTML = levels.map((L,i) => `<button class="pill${i===cur?' on':''}" onclick="loadLevel(${i})">ด่าน ${i+1}</button>`).join('');
+}
+
+// ===== สร้างด่าน =====
+function buildSlots(p, steps){
+  const box = $(p + '-slots');
+  box.innerHTML = '';
+  steps.forEach((s,k) => {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = `<div class="zone ${p}" id="z-${p}-${k}" data-p="${p}" data-k="${k}">
+        <span class="badge">ขั้นที่ ${k+1}</span><span class="ph">${icon(s[0])}</span><span>${TYPES[s[0]].label}</span>
+      </div>` + (k < steps.length-1 ? '<div class="arrow">▼</div>' : '');
+    box.appendChild(row);
+  });
+}
+
+function loadLevel(i){
+  cur = i; active = true;
+  const L = levels[i];
+  $('victory').classList.remove('open');
+  $('mission').textContent = L.title;
+  $('structure').textContent = L.structure;
+  msg('🏁 เริ่มแข่ง! จีบนิ้วหยิบบล็อกไปวางเรียงขั้นที่ 1 → ' + L.steps.length + ' ให้ถูกต้อง');
+  pills();
+  blocks.forEach(b => b.remove());
+  blocks = [];
+  srcMouse.block = null;
+  cursors.forEach(c => { c.block = null; c.pinched = false; });
+  ['p1','p2'].forEach(p => buildSlots(p, L.steps));
+  ['p1','p2'].forEach(p => {
+    const order = shuffleNonTrivial(L.steps.map((s,k) => ({k, type:s[0], text:s[1]})));
+    order.forEach((s, slot) => {
+      const el = document.createElement('div');
+      el.className = 'block ' + p;
+      el.dataset.p = p; el.dataset.k = s.k; el.dataset.slot = slot; el.dataset.zone = '';
+      el.innerHTML = icon(s.type);
+      const span = document.createElement('span');
+      span.textContent = s.text;
+      el.appendChild(span);
+      $('ui').appendChild(el);
+      blocks.push(el);
+    });
+  });
+  placeAll();
+  ['p1','p2'].forEach(p => check(p));
+  tick();
+}
+
+// วางบล็อกในตำแหน่งของมัน: ในช่องถ้าอยู่ในช่อง ไม่งั้นกลับไปที่คลังบล็อก
+function place(b){
+  let x, y;
+  if(b.dataset.zone){
+    const r = $(b.dataset.zone).getBoundingClientRect();
+    x = r.left + r.width/2; y = r.top + r.height/2;
+  } else {
+    const bank = $(b.dataset.p + '-bank').getBoundingClientRect();
+    const step = (bank.height - 16) / levels[cur].steps.length;
+    x = bank.left + bank.width/2;
+    y = bank.top + 8 + step * (+b.dataset.slot + .5);
+  }
+  b.style.left = x + 'px';
+  b.style.top = y + 'px';
+}
+function placeAll(){
+  const z = document.querySelector('.zone'), bw = z ? z.getBoundingClientRect().width : 200;
+  blocks.forEach(b => { b.style.width = bw + 'px'; place(b); });
+}
+
+// ===== จับ / ปล่อยบล็อก (รองรับเมาส์, ทัช และมือ) =====
+function grabAt(src){
+  const b = blocks.find(el => !held(el) && inside(src.x, src.y, el.getBoundingClientRect()));
+  if(!b) return null;
+  b.classList.remove('ok','bad');
+  b.classList.add('grabbed');
+  b.dataset.zone = '';
+  snd('grab');
+  return b;
+}
+function move(src){
+  if(src.block){ src.block.style.left = src.x + 'px'; src.block.style.top = src.y + 'px'; }
+  highlight();
+}
+function release(src){
+  const b = src.block;
+  if(!b) return;
+  src.block = null;
+  drop(b, src.x, src.y);
+}
+function highlight(){
+  const drags = [srcMouse, ...cursors].filter(s => s.block);
+  document.querySelectorAll('.zone').forEach(z => {
+    const r = z.getBoundingClientRect();
+    z.classList.toggle('hl', drags.some(s => s.block.dataset.p === z.dataset.p && inside(s.x, s.y, r)));
+  });
+}
+function drop(b, x, y){
+  const p = b.dataset.p;
+  let occupant = null;
+  const zone = [...document.querySelectorAll('.zone.' + p)].find(z => inside(x, y, z.getBoundingClientRect()));
+  if(zone){
+    occupant = blocks.find(o => o !== b && o.dataset.zone === zone.id) || null;
+    if(occupant){ occupant.dataset.zone = ''; occupant.classList.remove('ok','bad'); }
+    b.dataset.zone = zone.id;
+    snd(zone.dataset.k === b.dataset.k ? 'ok' : 'snap');
+  } else {
+    b.dataset.zone = '';
+  }
+  b.classList.remove('grabbed');
+  place(b);
+  if(occupant) place(occupant);
+  highlight();
+  check(p);
+}
+
+// ===== ตรวจคำตอบและประกาศผู้ชนะ =====
+function check(p){
+  const n = levels[cur].steps.length;
+  let filled = 0, good = 0;
+  blocks.filter(b => b.dataset.p === p).forEach(b => {
+    b.classList.remove('ok','bad');
+    if(!b.dataset.zone) return;
+    filled++;
+    const ok = $(b.dataset.zone).dataset.k === b.dataset.k;
+    if(ok) good++;
+    b.classList.add(ok ? 'ok' : 'bad');
+  });
+  $(p + '-prog').textContent = `ถูก ${good} / ${n} ขั้นตอน`;
+  if(!active) return;
+  const who = CONFIG.names[p === 'p1' ? 0 : 1];
+  if(filled === n && good === n) win(p);
+  else if(filled === n){ msg(`⚠️ ${who} วางครบแล้วแต่ยังมีบล็อกขอบแดง ลองสลับใหม่!`, 'warn'); snd('bad'); }
+}
+function win(p){
+  active = false;
+  clearInterval(timer);
+  snd('win');
+  const who = CONFIG.names[p === 'p1' ? 0 : 1];
+  $('wt').textContent = `${who} คว้าชัยชนะ!`;
+  $('wd').textContent = `ต่อผังงาน “${levels[cur].title}” ถูกต้องครบทุกขั้นตอน ใช้เวลา ${fmt()} นาที`;
+  msg(`🏆 ${who} ชนะในด่านนี้!`, 'ok');
+  $('victory').classList.add('open');
+}
+
+// ===== Hand Tracking (MediaPipe) =====
+const cv = $('cv'), ctx = cv.getContext('2d'), camEl = $('cam');
+const modalOpen = () => !!document.querySelector('.modal.open');
+const palm = lm => Math.hypot(lm[0].x - lm[9].x, lm[0].y - lm[9].y) || 1;
+
+// แปลงพิกัดวิดีโอ (0-1) ให้ตรงกับภาพบนจอ (object-fit: cover) — เคอร์เซอร์จะตรงกับมือพอดีทุกขนาดหน้าจอ
+function coverMap(W, H){
+  const vw = camEl.videoWidth || 1280, vh = camEl.videoHeight || 720;
+  const sc = Math.max(W / vw, H / vh), ox = (W - vw * sc) / 2, oy = (H - vh * sc) / 2;
+  return l => ({x: (ox + l.x * vw * sc) / W, y: (oy + l.y * vh * sc) / H});  // ยังไม่กลับด้าน (canvas ถูกกลับด้านด้วย CSS)
+}
+
+function pinchClick(c){   // จีบนิ้วบนปุ่ม = กดปุ่ม (เช่น เริ่มใหม่, ด่านถัดไป)
+  const el = document.elementFromPoint(c.x, c.y), t = el && el.closest('button');
+  if(t && !t.disabled){ t.click(); snd('snap'); }
+}
+
+function onResults(res){
+  const W = innerWidth, H = innerHeight, map = coverMap(W, H), lms = res.multiHandLandmarks || [];
+  const dets = lms.map(raw => {
+    const lm = raw.map(map);
+    const mx = (lm[4].x + lm[8].x) / 2, my = (lm[4].y + lm[8].y) / 2;   // จุดจีบ = กึ่งกลางปลายนิ้วโป้งกับนิ้วชี้
+    return {lm, x: (1 - mx) * W, y: my * H, r: Math.hypot(raw[8].x - raw[4].x, raw[8].y - raw[4].y) / palm(raw)};
+  });
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  dets.forEach(d => {
+    drawConnectors(ctx, d.lm, HAND_CONNECTIONS, {color: d.x < W/2 ? 'rgba(0,210,255,.65)' : 'rgba(255,159,67,.65)', lineWidth:2});
+    drawLandmarks(ctx, d.lm, {color:'#fff', lineWidth:1, radius:2});
+  });
+  const hs = $('hs');
+  hs.className = 'hs ' + (dets.length ? 'ok' : 'no');
+  hs.textContent = dets.length ? `✅ พบ ${dets.length} มือ` : '✋ ยื่นมือเข้ากล้อง';
+
+  // จับคู่มือกับ cursor เดิมตามระยะใกล้ที่สุด เพื่อไม่ให้มือสลับกัน
+  cursors.forEach(c => c.det = null);
+  const used = new Set();
+  cursors.forEach(c => {
+    if(!c.on) return;
+    let bi = -1, bd = 260;
+    dets.forEach((d,j) => { const dd = Math.hypot(d.x - c.x, d.y - c.y); if(!used.has(j) && dd < bd){ bd = dd; bi = j; } });
+    if(bi >= 0){ c.det = dets[bi]; used.add(bi); }
+  });
+  dets.forEach((d,j) => {
+    if(used.has(j)) return;
+    const c = cursors.find(c => !c.det);
+    if(c){ c.det = d; used.add(j); c.on = false; }   // มือใหม่ ให้ตำแหน่งเริ่มที่มือเลย ไม่ต้องสไลด์
+  });
+
+  cursors.forEach(c => {
+    if(!c.det){
+      if(c.on){ c.on = false; c.el.style.display = 'none'; if(c.pinched){ c.pinched = false; release(c); } }
+      return;
+    }
+    const d = c.det;
+    const pinch = c.pinched ? d.r < CONFIG.pinchRelease : d.r < CONFIG.pinchGrab;
+    if(c.on){ c.x += (d.x - c.x) * CONFIG.smooth; c.y += (d.y - c.y) * CONFIG.smooth; }
+    else { c.x = d.x; c.y = d.y; }
+    c.on = true;
+    c.el.style.display = 'block';
+    c.el.style.left = c.x + 'px';
+    c.el.style.top = c.y + 'px';
+    c.el.classList.toggle('p2', c.x >= W/2);
+    c.el.classList.toggle('pinch', pinch);
+    if(pinch && !c.pinched){
+      c.pinched = true;
+      c.block = (active && !modalOpen()) ? grabAt(c) : null;
+      if(!c.block) pinchClick(c);
+    }
+    else if(pinch && c.block){ move(c); }
+    else if(!pinch && c.pinched){ c.pinched = false; release(c); }
+  });
+}
+
+// ===== ขออนุญาตกล้อง (เรียกจากการกดปุ่มเท่านั้น เบราว์เซอร์จึงแสดงหน้าต่างขออนุญาตแน่นอน) =====
+let hands = null, running = false;
+function camError(html){
+  const e = $('camerr'); e.innerHTML = html; e.style.display = 'block';
+  $('spin').style.display = 'none';
+  const b = $('camBtn'); b.disabled = false; b.textContent = '🔄 ลองอีกครั้ง';
+}
+function explain(err){
+  const n = err && err.name;
+  if(!window.isSecureContext) return '🔒 เบราว์เซอร์อนุญาตกล้องเฉพาะหน้าเว็บแบบ <b>https://</b> หรือ <b>localhost</b> เท่านั้น — ลองอัปโหลดไฟล์ขึ้นเว็บโฮสต์ที่เป็น https หรือเปิดผ่าน localhost';
+  if(n === 'NotAllowedError' || n === 'SecurityError') return '🚫 กล้องถูกบล็อกหรือยังไม่ได้กดอนุญาต<br>• กดไอคอน 🔒 / 📷 ข้างช่อง URL → เลือก “อนุญาต (Allow)” แล้วกด “ลองอีกครั้ง”<br>• ถ้าเปิดไฟล์ผ่านแอปแชท / หน้าพรีวิว / กรอบฝัง (iframe) กล้องมักถูกปิดไว้ ให้ดาวน์โหลดไฟล์แล้วเปิดตรงๆ ใน Chrome / Edge / Safari';
+  if(n === 'NotFoundError' || n === 'OverconstrainedError') return '📷 ไม่พบกล้องในอุปกรณ์นี้ — ลองเสียบเว็บแคม แล้วกด “ลองอีกครั้ง”';
+  if(n === 'NotReadableError' || n === 'AbortError') return '⚠️ กล้องกำลังถูกใช้โดยโปรแกรมอื่น (เช่น Zoom, Meet) — ปิดโปรแกรมนั้นก่อน แล้วกด “ลองอีกครั้ง”';
+  if(n === 'Unsupported') return '⚠️ เบราว์เซอร์นี้ไม่รองรับการเปิดกล้อง ลองใช้ Chrome / Edge / Safari เวอร์ชันล่าสุด';
+  return '⚠️ โหลดระบบจับมือไม่สำเร็จ — ตรวจสอบอินเทอร์เน็ต (ต้องโหลดโมเดลจาก CDN ครั้งแรก) แล้วกด “ลองอีกครั้ง”';
+}
+async function enableCamera(){
+  const btn = $('camBtn');
+  btn.disabled = true; btn.textContent = 'กำลังเปิดกล้อง…';
+  $('camerr').style.display = 'none'; $('spin').style.display = 'block';
+  try{
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw {name:'Unsupported'};
+    say('กำลังขออนุญาตใช้กล้อง… กรุณากด “อนุญาต (Allow)” ในหน้าต่างของเบราว์เซอร์');
+    const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user', width:{ideal:1280}, height:{ideal:720}}, audio:false});
+    camEl.srcObject = stream;
+    await camEl.play();
+    say('อนุญาตแล้ว ✅ กำลังโหลดระบบจับมือ… (ครั้งแรกอาจใช้เวลาสักครู่)');
+    if(typeof Hands === 'undefined') throw {name:'NoLib'};
+    if(!hands){
+      hands = new Hands({locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${f}`});
+      hands.setOptions({maxNumHands:4, modelComplexity:1, minDetectionConfidence:.65, minTrackingConfidence:.65});
+      hands.onResults(onResults);
+      await hands.initialize();
+    }
+    if(!running){ running = true; loop(); }
+    $('spin').style.display = 'none';
+    start();
+    msg('🤏 จีบนิ้วโป้ง+นิ้วชี้เพื่อหยิบบล็อก แล้วแบนิ้วออกเพื่อวาง');
+  }catch(e){
+    console.error(e);
+    camError(explain(e));
+    say('เกมนี้ต้องใช้กล้องเพื่อเล่นด้วยการจีบนิ้ว');
+  }
+}
+let busy = false;
+async function loop(){
+  if(camEl.readyState >= 2 && !busy){
+    busy = true;
+    try{ await hands.send({image: camEl}); }catch(e){}
+    busy = false;
+  }
+  requestAnimationFrame(loop);
+}
+
+// ===== เริ่มเกม =====
+function start(){
+  if(started) return;
+  started = true;
+  $('load').style.display = 'none';
+  try{ Tone.start(); }catch(e){}
+  loadLevel(CONFIG.startLevel);
+}
+function sizeCanvas(){ cv.width = innerWidth; cv.height = innerHeight; placeAll(); }
+
+// ===== Custom Level Builder =====
+function buildForm(){
+  $('bSteps').innerHTML = DEFAULT_TYPES.map((t,i) => `
+    <div class="brow">
+      <b style="color:var(--p1);font-size:13px">ขั้นที่ ${i+1}</b>
+      <input id="bt${i}" placeholder="ข้อความขั้นที่ ${i+1}">
+      <select id="by${i}">${Object.keys(TYPES).map(k => `<option value="${k}"${k===t?' selected':''}>${TYPES[k].label}</option>`).join('')}</select>
+    </div>`).join('');
+}
+function openBuilder(){ $('bErr').textContent = ''; $('builder').classList.add('open'); }
+function closeBuilder(){ $('builder').classList.remove('open'); }
+function saveLevel(){
+  const title = $('bTitle').value.trim();
+  if(!title){ $('bErr').textContent = '⚠️ กรุณาระบุชื่อโจทย์'; return; }
+  const steps = [0,1,2,3,4].map(i => [$('by'+i).value, $('bt'+i).value.trim() || `ขั้นตอนที่ ${i+1}`]);
+  levels.push({title:`ด่านที่ ${levels.length+1}: ${title}`, structure:$('bStruct').value, steps});
+  closeBuilder();
+  loadLevel(levels.length - 1);
+}
+
+// ===== เริ่มต้นระบบ =====
+document.title = CONFIG.title;
+$('ttl').textContent = CONFIG.title;
+$('n1').textContent = CONFIG.names[0];
+$('n2').textContent = CONFIG.names[1];
+buildForm();
+sizeCanvas();
+addEventListener('resize', sizeCanvas);
+
+// ถ้าเคยกดบล็อกกล้องไว้ ให้บอกวิธีแก้ตั้งแต่หน้าแรก
+if(navigator.permissions && navigator.permissions.query){
+  navigator.permissions.query({name:'camera'}).then(p => {
+    if(p.state === 'denied') camError(explain({name:'NotAllowedError'}));
+  }).catch(() => {});
+}
+</script>
+</body>
+</html>
